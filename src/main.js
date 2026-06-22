@@ -44,6 +44,7 @@ const dom = {
   modalClose: $('#modalClose'),
   streamContainer: $('#streamContainer'),
   sourceTabs: $('#sourceTabs'),
+  swipeHint: $('#swipeHint'),
   streamList: $('#streamList'),
   toastContainer: $('#toastContainer'),
 };
@@ -281,6 +282,7 @@ function openStreamModal(stream) {
   if (allSources.length === 0) {
     dom.sourceTabs.innerHTML = '';
     dom.streamList.innerHTML = '';
+    dom.swipeHint.style.display = 'none';
     dom.streamContainer.innerHTML = `
       <div class="stream-placeholder">
         <svg class="placeholder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -296,10 +298,13 @@ function openStreamModal(stream) {
   if (allSources.length === 1) {
     dom.sourceTabs.innerHTML = '';
     dom.streamList.innerHTML = '';
+    dom.swipeHint.style.display = 'none';
     dom.streamContainer.innerHTML = `<iframe src="${allSources[0].iframe}" allowfullscreen></iframe>`;
     dom.modal.classList.add('open');
     return;
   }
+
+  dom.swipeHint.style.display = '';
 
   dom.sourceTabs.innerHTML = allSources
     .map((s, i) => {
@@ -310,14 +315,41 @@ function openStreamModal(stream) {
 
   dom.streamList.innerHTML = '';
 
+  function switchSource(idx) {
+    $$('.source-tab', dom.sourceTabs).forEach((b) => b.classList.remove('active'));
+    const btn = $(`.source-tab[data-index="${idx}"]`, dom.sourceTabs);
+    if (btn) {
+      btn.classList.add('active');
+      btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+    dom.streamContainer.innerHTML = `<iframe src="${allSources[idx].iframe}" allowfullscreen></iframe>`;
+  }
+
+  let currentSourceIndex = 0;
+
   $$('.source-tab', dom.sourceTabs).forEach((btn) => {
     btn.addEventListener('click', () => {
-      $$('.source-tab', dom.sourceTabs).forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-      const idx = parseInt(btn.dataset.index);
-      dom.streamContainer.innerHTML = `<iframe src="${allSources[idx].iframe}" allowfullscreen></iframe>`;
+      currentSourceIndex = parseInt(btn.dataset.index);
+      switchSource(currentSourceIndex);
     });
   });
+
+  let touchStartX = 0;
+  dom.streamContainer.addEventListener('touchstart', (e) => {
+    touchStartX = e.touches[0].clientX;
+  }, { passive: true });
+  dom.streamContainer.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) {
+      if (dx < 0 && currentSourceIndex < allSources.length - 1) {
+        currentSourceIndex++;
+        switchSource(currentSourceIndex);
+      } else if (dx > 0 && currentSourceIndex > 0) {
+        currentSourceIndex--;
+        switchSource(currentSourceIndex);
+      }
+    }
+  }, { passive: true });
 
   dom.modal.classList.add('open');
   dom.streamContainer.innerHTML = `<iframe src="${allSources[0].iframe}" allowfullscreen></iframe>`;
