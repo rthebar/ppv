@@ -1,5 +1,4 @@
 import { defineConfig } from 'vite';
-import ppvProxyPlugin from './ppv-proxy-plugin.mjs';
 
 export default defineConfig({
   root: '.',
@@ -10,5 +9,4 @@ export default defineConfig({
     port: 3001,
     open: true,
   },
-  plugins: [ppvProxyPlugin()],
 });
