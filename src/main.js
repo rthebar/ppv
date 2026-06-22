@@ -44,8 +44,6 @@ const dom = {
   modalClose: $('#modalClose'),
   streamContainer: $('#streamContainer'),
   sourceTabs: $('#sourceTabs'),
-  swipeHint: $('#swipeHint'),
-  streamList: $('#streamList'),
   toastContainer: $('#toastContainer'),
 };
 
@@ -88,7 +86,7 @@ function normalizeStream(ppvCategory, ppvStream) {
     locale: ppvStream.locale || null,
     uriName: ppvStream.uri_name,
     iframe: ppvStream.iframe || null,
-    viewers: parseInt(ppvStream.viewers) || 0,
+    viewers: parseInt(ppvStream.viewers, 10) || 0,
     isLive,
     isUpcoming,
     alwaysLive,
@@ -187,7 +185,9 @@ function renderStreams(streams) {
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
-    filtered = filtered.filter((s) => s.date >= startOfDay.getTime() && s.date <= endOfDay.getTime());
+    const sod = startOfDay.getTime();
+    const eod = endOfDay.getTime();
+    filtered = filtered.filter((s) => s.alwaysLive || (s.date <= eod && s.endsAt >= sod));
   }
 
   if (state.searchQuery) {
@@ -195,13 +195,18 @@ function renderStreams(streams) {
   }
 
   if (filtered.length === 0) {
+    const emptyMsg = state.searchQuery
+      ? { title: 'No streams match your search', sub: 'Try different keywords' }
+      : state.currentSport
+        ? { title: 'No streams in this category', sub: 'Check back later' }
+        : { title: 'No streams available', sub: 'Check back later' };
     dom.matchesGrid.innerHTML = `
       <div class="empty-state">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
-        <h3>No streams match your search</h3>
-        <p>Try different keywords</p>
+        <h3>${emptyMsg.title}</h3>
+        <p>${emptyMsg.sub}</p>
       </div>
     `;
     return;
@@ -261,7 +266,7 @@ function createStreamCard(stream, index) {
   `;
 
   card.addEventListener('click', (e) => {
-    if (e.target.closest('.watch-btn') || e.target.closest('.card-body')) {
+    if (!e.target.closest('.watch-btn')) {
       openStreamModal(stream);
     }
   });
@@ -273,6 +278,14 @@ function createStreamCard(stream, index) {
 function openStreamModal(stream) {
   dom.modalTitle.textContent = stream.name;
   dom.modalCategory.textContent = stream.categoryName;
+  dom.streamContainer.innerHTML = `
+    <div class="stream-placeholder">
+      <svg class="placeholder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="5 3 19 12 5 21 5 3" />
+      </svg>
+      <p>Select a source below to watch</p>
+    </div>
+  `;
 
   const allSources = [
     { label: stream.sourceTag || 'Main', iframe: stream.iframe, locale: stream.locale },
@@ -280,76 +293,29 @@ function openStreamModal(stream) {
   ].filter((s) => s.iframe);
 
   if (allSources.length === 0) {
-    dom.sourceTabs.innerHTML = '';
-    dom.streamList.innerHTML = '';
-    dom.swipeHint.style.display = 'none';
-    dom.streamContainer.innerHTML = `
-      <div class="stream-placeholder">
-        <svg class="placeholder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="5 3 19 12 5 21 5 3" />
-        </svg>
-        <p>Stream not available</p>
-      </div>
-    `;
+    dom.sourceTabs.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem">No stream sources available</p>';
     dom.modal.classList.add('open');
     return;
   }
 
   if (allSources.length === 1) {
     dom.sourceTabs.innerHTML = '';
-    dom.streamList.innerHTML = '';
-    dom.swipeHint.style.display = 'none';
     dom.streamContainer.innerHTML = `<iframe src="${allSources[0].iframe}" allowfullscreen></iframe>`;
     dom.modal.classList.add('open');
     return;
   }
 
-  dom.swipeHint.style.display = '';
-
   dom.sourceTabs.innerHTML = allSources
-    .map((s, i) => {
-      const localeLabel = s.locale ? ` [${s.locale}]` : '';
-      return `<button class="source-tab ${i === 0 ? 'active' : ''}" data-index="${i}">${s.label}${localeLabel}</button>`;
-    })
+    .map((s, i) => `<button class="source-tab ${i === 0 ? 'active' : ''}" data-iframe="${s.iframe}">${s.label}</button>`)
     .join('');
-
-  dom.streamList.innerHTML = '';
-
-  function switchSource(idx) {
-    $$('.source-tab', dom.sourceTabs).forEach((b) => b.classList.remove('active'));
-    const btn = $(`.source-tab[data-index="${idx}"]`, dom.sourceTabs);
-    if (btn) {
-      btn.classList.add('active');
-      btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-    }
-    dom.streamContainer.innerHTML = `<iframe src="${allSources[idx].iframe}" allowfullscreen></iframe>`;
-  }
-
-  let currentSourceIndex = 0;
 
   $$('.source-tab', dom.sourceTabs).forEach((btn) => {
     btn.addEventListener('click', () => {
-      currentSourceIndex = parseInt(btn.dataset.index);
-      switchSource(currentSourceIndex);
+      $$('.source-tab', dom.sourceTabs).forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      dom.streamContainer.innerHTML = `<iframe src="${btn.dataset.iframe}" allowfullscreen></iframe>`;
     });
   });
-
-  let touchStartX = 0;
-  dom.streamContainer.addEventListener('touchstart', (e) => {
-    touchStartX = e.touches[0].clientX;
-  }, { passive: true });
-  dom.streamContainer.addEventListener('touchend', (e) => {
-    const dx = e.changedTouches[0].clientX - touchStartX;
-    if (Math.abs(dx) > 50) {
-      if (dx < 0 && currentSourceIndex < allSources.length - 1) {
-        currentSourceIndex++;
-        switchSource(currentSourceIndex);
-      } else if (dx > 0 && currentSourceIndex > 0) {
-        currentSourceIndex--;
-        switchSource(currentSourceIndex);
-      }
-    }
-  }, { passive: true });
 
   dom.modal.classList.add('open');
   dom.streamContainer.innerHTML = `<iframe src="${allSources[0].iframe}" allowfullscreen></iframe>`;
@@ -374,8 +340,8 @@ function selectView(view) {
   });
 
   $$('.sport-item').forEach((item) => item.classList.remove('active'));
-  const liveItem = $('[data-sport="live"]', dom.sportsList);
-  if (liveItem) liveItem.classList.add('active');
+  const activeItem = $(`[data-sport="${view}"]`, dom.sportsList);
+  if (activeItem) activeItem.classList.add('active');
 
   const labels = { live: 'Live Streams', today: "Today's Streams", all: 'All Streams' };
   dom.contentTitle.textContent = labels[view] || 'Streams';
@@ -479,6 +445,7 @@ function init() {
 
   dom.modalClose.addEventListener('click', () => {
     dom.modal.classList.remove('open');
+    dom.sourceTabs.innerHTML = '';
     dom.streamContainer.innerHTML = `
       <div class="stream-placeholder">
         <svg class="placeholder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">

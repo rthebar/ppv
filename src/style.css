@@ -795,10 +795,6 @@ html, body {
   border: none;
 }
 
-.swipe-hint {
-  display: none;
-}
-
 .stream-placeholder {
   display: flex;
   flex-direction: column;
@@ -914,17 +910,6 @@ html, body {
 
   .stream-container iframe {
     min-height: 250px;
-  }
-
-  .swipe-hint {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 6px;
-    color: rgba(255, 255, 255, 0.4);
-    font-size: 0.7rem;
-    text-align: center;
   }
 
   .source-tabs {
