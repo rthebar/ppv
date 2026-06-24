@@ -290,10 +290,8 @@ function createStreamCard(stream, index) {
     </div>
   `;
 
-  card.addEventListener('click', (e) => {
-    if (!e.target.closest('.watch-btn')) {
-      openStreamModal(stream);
-    }
+  card.addEventListener('click', () => {
+    openStreamModal(stream);
   });
 
   return card;
