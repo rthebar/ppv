@@ -387,6 +387,23 @@ html, body {
   color: var(--text-muted);
 }
 
+.popular-section {
+  margin-bottom: 24px;
+}
+
+.popular-section .section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 14px;
+  color: var(--text-primary);
+}
+
+.popular-section .section-subtitle {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
 .sidebar-toggle {
   display: none;
   width: 36px;

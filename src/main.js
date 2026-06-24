@@ -37,6 +37,9 @@ const dom = {
   navTabs: $$('.nav-tab'),
   sportsList: $('#sportsList'),
   matchesGrid: $('#matchesGrid'),
+  popularSection: $('#popularSection'),
+  popularGrid: $('#popularGrid'),
+  liveSection: $('#liveSection'),
   contentTitle: $('#contentTitle'),
   matchCount: $('#matchCount'),
   refreshBtn: $('#refreshBtn'),
@@ -169,6 +172,9 @@ function renderSports(categories) {
 function renderStreams(streams) {
   dom.matchesGrid.innerHTML = '';
 
+  const showLiveHeading = state.currentView === 'live' && !state.currentSport;
+  dom.liveSection.querySelector('.section-title').style.display = showLiveHeading ? '' : 'none';
+
   if (state.loading) {
     dom.matchesGrid.innerHTML = `
       <div class="loading-state">
@@ -214,6 +220,8 @@ function renderStreams(streams) {
     filtered = filtered.filter((s) => s.name.toLowerCase().includes(state.searchQuery) || (s.sourceTag || '').toLowerCase().includes(state.searchQuery) || s.categoryName.toLowerCase().includes(state.searchQuery));
   }
 
+  filtered.sort((a, b) => (b.viewers || 0) - (a.viewers || 0));
+
   if (filtered.length === 0) {
     const emptyMsg = state.searchQuery
       ? { title: 'No streams match your search', sub: 'Try different keywords' }
@@ -240,6 +248,23 @@ function renderStreams(streams) {
     const card = createStreamCard(stream, i);
     dom.matchesGrid.appendChild(card);
   });
+
+  if (state.currentView === 'live' && !state.currentSport && !state.searchQuery) {
+    const popular = streams
+      .filter((s) => (s.isLive || s.isUpcoming) && (s.viewers || 0) >= 100)
+      .sort((a, b) => (b.viewers || 0) - (a.viewers || 0));
+    if (popular.length > 0) {
+      dom.popularSection.style.display = '';
+      dom.popularGrid.innerHTML = '';
+      popular.forEach((stream, i) => {
+        dom.popularGrid.appendChild(createStreamCard(stream, i));
+      });
+    } else {
+      dom.popularSection.style.display = 'none';
+    }
+  } else {
+    dom.popularSection.style.display = 'none';
+  }
 }
 
 function createStreamCard(stream, index) {
