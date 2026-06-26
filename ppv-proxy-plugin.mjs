@@ -1,4 +1,4 @@
-const PPV_API_URL = 'https://api.ppv.to';
+const PPV_API_URL = 'https://api.ppv.st';
 const CACHE_TTL = 60_000;
 let cache = null;
 let cacheTime = 0;

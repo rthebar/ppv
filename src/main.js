@@ -1,6 +1,6 @@
 import { getSportIcon } from './sportIcons.js';
 
-const API_BASE = 'https://api.ppv.to/api';
+const API_BASE = 'https://api.ppv.st/api';
 
 const CATEGORY_MAP = {
   'American Football': 'american-football',
